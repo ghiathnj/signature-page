@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Digitale Unterschrift</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box p {
+            margin: 5px 0;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .info-box strong {
+            color: #333;
+        }
+
+        .signature-area {
+            margin: 20px 0;
+        }
+
+        .signature-label {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .canvas-container {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            background: #fafbfc;
+            padding: 10px;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 200px;
+            border-radius: 8px;
+            background: white;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #aaa;
+            font-size: 18px;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .canvas-container.has-signature .placeholder-text {
+            opacity: 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-clear {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-clear:hover {
+            background: #d0d0d0;
+            transform: translateY(-2px);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            display: none;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .message.active {
+            display: block;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            canvas {
+                height: 150px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Digitale Unterschrift</h1>
+            <p>Bitte unterschreiben Sie im untenstehenden Feld</p>
+        </div>
+
+        <div class="info-box" id="infoBox">
+            <p><strong>Datum:</strong> <span id="dateDisplay"></span></p>
+            <p><strong>BV-Nummer:</strong> <span id="bvDisplay"></span></p>
+            <p><strong>Name:</strong> <span id="nameDisplay"></span></p>
+        </div>
+
+        <div class="signature-area">
+            <div class="signature-label">Unterschrift:</div>
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="signatureCanvas"></canvas>
+                <div class="placeholder-text">Hier unterschreiben</div>
+            </div>
+        </div>
+
+        <div class="button-group" id="buttonGroup">
+            <button class="btn-clear" id="clearBtn">Löschen</button>
+            <button class="btn-submit" id="submitBtn" disabled>Bestätigen</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Unterschrift wird übermittelt...</p>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id') || 'unknown';
+        const personName = urlParams.get('person_name') || 'Unbekannt';
+        const date = urlParams.get('date') || new Date().toLocaleDateString('de-DE');
+        const bvNumber = urlParams.get('bv_number') || 'N/A';
+        const webhookUrl = urlParams.get('webhook_url');
+        const signatureType = urlParams.get('type') || 'kunde'; // 'bauleiter' or 'kunde'
+
+        // Display information
+        document.getElementById('dateDisplay').textContent = date;
+        document.getElementById('bvDisplay').textContent = bvNumber;
+        document.getElementById('nameDisplay').textContent = personName;
+
+        // Canvas setup
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        let isDrawing = false;
+        let hasSignature = false;
+
+        // Set canvas size
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            // Set drawing style
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Get coordinates
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            return { x, y };
+        }
+
+        // Start drawing
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const { x, y } = getCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Draw
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+
+            const { x, y } = getCoordinates(e);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            hasSignature = true;
+            canvasContainer.classList.add('has-signature');
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        // Stop drawing
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        // Mouse events
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch events
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSignature = false;
+            canvasContainer.classList.remove('has-signature');
+            document.getElementById('submitBtn').disabled = true;
+        });
+
+        // Submit button
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            if (!hasSignature) {
+                showMessage('Bitte unterschreiben Sie zuerst.', 'error');
+                return;
+            }
+
+            if (!webhookUrl) {
+                showMessage('Fehler: Webhook-URL fehlt. Bitte kontaktieren Sie den Support.', 'error');
+                return;
+            }
+
+            // Convert canvas to base64
+            const signatureBase64 = canvas.toDataURL('image/png');
+
+            // Show loading
+            document.getElementById('buttonGroup').style.display = 'none';
+            document.getElementById('loading').classList.add('active');
+
+            // Prepare payload
+            const payload = {
+                session_id: sessionId,
+                signature_type: signatureType,
+                signature_base64: signatureBase64,
+                timestamp: new Date().toISOString(),
+                metadata: {
+                    bv_number: bvNumber,
+                    person_name: personName,
+                    date: date
+                }
+            };
+
+            try {
+                // Send to webhook
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    showMessage('Unterschrift erfolgreich übermittelt! Sie können dieses Fenster schließen.', 'success');
+
+                    // Disable canvas and buttons
+                    canvas.style.pointerEvents = 'none';
+                    canvas.style.opacity = '0.5';
+                } else {
+                    throw new Error('Server-Fehler: ' + response.status);
+                }
+            } catch (error) {
+                showMessage('Fehler beim Übermitteln der Unterschrift: ' + error.message, 'error');
+                document.getElementById('buttonGroup').style.display = 'flex';
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        });
+
+        // Show message
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type + ' active';
+        }
+
+        // Validate webhook URL on load
+        if (!webhookUrl) {
+            showMessage('Fehler: Diese Seite kann nicht ohne gültige Parameter geöffnet werden.', 'error');
+            document.getElementById('submitBtn').disabled = true;
+        }
+    </script>
+</body>
+</html>
