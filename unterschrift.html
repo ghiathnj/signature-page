@@ -371,6 +371,36 @@
     // Switch pages
     document.getElementById('pageSign').classList.remove('active');
     document.getElementById('pageThank').classList.add('active');
+
+         // Unterschrift an n8n Webhook senden
+       const params = new URLSearchParams(window.location.search);
+       const webhookUrl = params.get('webhook_url');
+       const sessionId = params.get('session_id');
+       const signatureType = params.get('type') || 'bauleiter';
+       const bvNumber = params.get('bv_number') || '';
+       const personName = params.get('person_name') || '';
+       const date = params.get('date') || '';
+
+       if (webhookUrl) {
+              // Base64 ohne "data:image/png;base64," Prefix
+              const signatureBase64 = cropped.replace('data:image/png;base64,', '');
+
+              fetch(webhookUrl, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                                  session_id: sessionId,
+                                  signature_type: signatureType,
+                                  signature_base64: signatureBase64,
+                                  bv_number: bvNumber,
+                                  person_name: personName,
+                                  date: date,
+                                  timestamp: new Date().toISOString()
+                       })
+              }).catch(function(err) {
+                       console.error('Webhook Fehler:', err);
+              });
+       }
   }
 
   function getCroppedCanvas() {
